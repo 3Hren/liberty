@@ -1,0 +1,22 @@
+Source: liberty
+Section: utils
+Priority: extra
+Maintainer: Evgeny Safronov <division494@gmail.com>
+Build-Depends: cmake, debhelper (>= 7.0.13),
+Standards-Version: 3.9.5
+
+Package: liberty0
+Architecture: any
+Section: libs
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ libcurl3 (>= 7.35)
+Description: HTTP client library
+ Provides asynchronous HTTP library.
+
+Package: liberty-dev
+Architecture: any
+Section: libdevel
+Depends: ${shlibs:Depends}, ${misc:Depends}, liberty0 (= ${binary:Version}),
+ libcurl3 (>= 7.35)
+Description: HTTP client library - Development.
+ Provides development files for the Liberty HTTP library.

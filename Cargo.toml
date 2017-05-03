@@ -1,0 +1,19 @@
+[package]
+name = "erty"
+version = "0.1.0"
+authors = ["Evgeny Safronov <division494@gmail.com>"]
+
+[lib]
+crate-type = ["dylib"]
+
+[dependencies]
+libc = "0.2"
+curl = "0.4"
+tokio-core = "0.1"
+tokio-curl = "0.1"
+futures = "0.1"
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+  "-C", "link-arg=-Wl,-soname,liberty.so.0"
+]
