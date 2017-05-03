@@ -5,11 +5,12 @@ extern crate tokio_core;
 extern crate tokio_curl;
 
 use std::io;
+use std::mem;
+use std::ptr;
 use std::slice;
 use std::str;
-use std::ptr;
-use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
 
 use curl::easy::Easy;
 
@@ -79,76 +80,73 @@ impl HttpClient {
             let future = rx.for_each(|event| {
                 match event {
                     Event::Perform(mut request) => {
-                        match request.complete {
-                            Some((callback, data)) => {
-                                let response = Arc::new(Mutex::new(Response::new()));
-                                {
-                                    let response = response.clone();
-                                    request.handle.header_function(move |header| {
-                                        let mut response = response.lock().expect("lock must be healthy");
+                        if let Some((callback, data)) = request.complete {
+                            let response = Arc::new(Mutex::new(Response::new()));
+                            {
+                                let response = response.clone();
+                                request.handle.header_function(move |header| {
+                                    let mut response = response.lock().expect("lock must be healthy");
 
-                                        if response.status.is_empty() {
-                                            match String::from_utf8(header.into()) {
-                                                Ok(status) => {
-                                                    response.status = status;
-                                                    true
-                                                }
-                                                Err(..) => false,
+                                    if response.status.is_empty() {
+                                        match String::from_utf8(header.into()) {
+                                            Ok(status) => {
+                                                response.status = status;
+                                                true
                                             }
-                                        } else {
-                                            let mut iter = header.splitn(2, |c| *c == b':');
-                                            let name = iter.next().and_then(|name| str::from_utf8(name).ok());
-                                            let value = iter.next();
-
-                                            if let (Some(name), Some(value)) = (name, value) {
-                                                let header = Header {
-                                                    name: name.into(),
-                                                    value: value.into()
-                                                };
-
-                                                response.headers.push(header);
-                                            }
-                                            true
+                                            Err(..) => false,
                                         }
-                                    }).unwrap();
-                                }
-                                {
-                                    let response = response.clone();
-                                    request.handle.write_function(move |data| {
-                                        response.lock().expect("lock must be healthy").body.extend_from_slice(data);
-                                        Ok(data.len())
-                                    }).unwrap();
-                                }
+                                    } else {
+                                        let mut iter = header.splitn(2, |c| *c == b':');
+                                        let name = iter.next().and_then(|name| str::from_utf8(name).ok());
+                                        let value = iter.next();
 
-                                let future = session.perform(request.handle)
-                                    .then(move |handle| {
-                                        match handle {
-                                            Ok(mut handle) => {
-                                                let mut response = response.lock().expect("lock must be healthy");
-                                                response.code = handle.response_code().unwrap_or(0);
-                                                callback(ptr::null(), &*response, data);
-                                            }
-                                            Err(err) => {
-                                                let err = err.into_error();
-                                                let desc = err.to_string();
-                                                let e = Error {
-                                                    desc: Some(&desc),
-                                                };
-                                                callback(&e, ptr::null(), data);
-                                            }
+                                        if let (Some(name), Some(value)) = (name, value) {
+                                            let header = Header {
+                                                name: name.into(),
+                                                value: value.into()
+                                            };
+
+                                            response.headers.push(header);
                                         }
+                                        true
+                                    }
+                                }).unwrap();
+                            }
+                            {
+                                let response = response.clone();
+                                request.handle.write_function(move |data| {
+                                    response.lock().expect("lock must be healthy").body.extend_from_slice(data);
+                                    Ok(data.len())
+                                }).unwrap();
+                            }
 
-                                        Ok(())
-                                    });
-                                handle.spawn(future);
-                            }
-                            None => {
-                                let future = session.perform(request.handle)
-                                    .then(|_handle| {
-                                        Ok(())
-                                    });
-                                handle.spawn(future);
-                            }
+                            let future = session.perform(request.handle)
+                                .then(move |handle| {
+                                    match handle {
+                                        Ok(mut handle) => {
+                                            let mut response = response.lock().expect("lock must be healthy");
+                                            response.code = handle.response_code().unwrap_or(0);
+                                            callback(ptr::null(), &*response, data);
+                                        }
+                                        Err(err) => {
+                                            let err = err.into_error();
+                                            let desc = err.to_string();
+                                            let e = Error {
+                                                desc: Some(&desc),
+                                            };
+                                            callback(&e, ptr::null(), data);
+                                        }
+                                    }
+
+                                    Ok(())
+                                });
+                            handle.spawn(future);
+                        } else {
+                            let future = session.perform(request.handle).then(|handle| {
+                                mem::drop(handle);
+                                Ok(())
+                            });
+                            handle.spawn(future);
                         }
                         Ok(())
                     }
