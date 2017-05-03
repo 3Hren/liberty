@@ -1,0 +1,9 @@
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+  "-C", "link-arg=-Wl,-soname,liberty.so.0"
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-Wl,-install_name,liberty.0.dylib"
+]
