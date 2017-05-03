@@ -1,3 +1,9 @@
+liberty (0.1.1) unstable; urgency=low
+
+  * Fixed: proper linker arguments. Set SONAME.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 03 May 2017 19:32:57 +0300
+
 liberty (0.1.0) unstable; urgency=medium
 
   * Added: initial release.
