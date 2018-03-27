@@ -1,6 +1,35 @@
 #!/usr/bin/make -f
 
 # Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
-%:
-	dh $@
+# export DH_VERBOSE=1
+export DEB_BUILD_OPTIONS=nostrip
+
+DEB_DESTDIR=$(CURDIR)/debian/tmp/
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+
+export CARGO_HOME := $(CURDIR)/build/toolchains/
+export RUSTUP_HOME := $(CURDIR)/build/toolchains/
+export PATH := $(CARGO_HOME)/bin:$(PATH)
+
+clean::
+	rm -rf target/ build/toolchains/
+
+configure/liberty0::
+	curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
+
+build/liberty0::
+	cargo build --release --verbose
+	cargo test
+
+install-common::
+	install -d $(DEB_DESTDIR)usr/
+
+install/liberty0:: install-common
+	install -d $(DEB_DESTDIR)usr/lib
+	install -m644 target/release/liberty.so $(DEB_DESTDIR)usr/lib/liberty.so.0
+
+install/liberty-dev:: install-common
+	install -d $(DEB_DESTDIR)usr/include
+	install -d $(DEB_DESTDIR)usr/include/liberty
+	install -m644 -t $(DEB_DESTDIR)usr/include/liberty include/liberty/*
