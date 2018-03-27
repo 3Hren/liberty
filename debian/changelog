@@ -1,3 +1,9 @@
+liberty (0.1.2) unstable; urgency=low
+
+  * Feat: complete build by debian/rules.
+
+ -- Alex Karev <karapuz@yandex-team.ru>  Tue, 27 Mar 2018 13:59:25 +0300
+
 liberty (0.1.1) unstable; urgency=low
 
   * Fixed: proper linker arguments. Set SONAME.

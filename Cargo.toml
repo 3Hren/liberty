@@ -1,6 +1,6 @@
 [package]
 name = "erty"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Evgeny Safronov <division494@gmail.com>"]
 
 [lib]
