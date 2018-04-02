@@ -26,17 +26,24 @@ enum Event {
 }
 
 pub type Callback = extern fn(*const Error, *const Response, *mut libc::c_void);
-pub type Deleter = extern fn(*mut libc::c_void);
 
 struct CallbackWithArgs {
-    callback: Callback,
+    callback: Option<Callback>,
     data: *mut libc::c_void,
-    deleter: Deleter,
 }
 
 impl Drop for CallbackWithArgs {
     fn drop(&mut self) {
-        (self.deleter)(self.data);
+        let e = Error { desc: Some("cancelled") };
+        self.call(&e, ptr::null());
+    }
+}
+
+impl CallbackWithArgs {
+    fn call(&mut self, error: *const Error, response: *const Response) {
+        if let Some(callback) = self.callback.take() {
+            callback(error, response, self.data);
+        }
     }
 }
 
@@ -93,7 +100,7 @@ impl HttpClient {
             let future = rx.for_each(|event| {
                 match event {
                     Event::Perform(mut request) => {
-                        if let Some(cb) = request.complete {
+                        if let Some(mut cb) = request.complete {
                             let response = Arc::new(Mutex::new(Response::new()));
                             {
                                 let response = response.clone();
@@ -139,7 +146,7 @@ impl HttpClient {
                                         Ok(mut handle) => {
                                             let mut response = response.lock().expect("lock must be healthy");
                                             response.code = handle.response_code().unwrap_or(0);
-                                            (cb.callback)(ptr::null(), &*response, cb.data);
+                                            cb.call(ptr::null(), &*response);
                                         }
                                         Err(err) => {
                                             let err = err.into_error();
@@ -147,7 +154,7 @@ impl HttpClient {
                                             let e = Error {
                                                 desc: Some(&desc),
                                             };
-                                            (cb.callback)(&e, ptr::null(), cb.data);
+                                            cb.call(&e, ptr::null());
                                         }
                                     }
 
@@ -255,10 +262,11 @@ pub extern fn liberty_http_request_data(request: *mut Request, data: *mut u8, si
 }
 
 #[no_mangle]
-pub extern fn liberty_http_request_complete_callback(request: *mut Request, callback: Callback, data: *mut libc::c_void, deleter: Deleter) {
+pub extern fn liberty_http_request_complete_callback(request: *mut Request, callback: Callback, data: *mut libc::c_void) {
     let request = unsafe { &mut *request };
 
-    request.complete = Some(CallbackWithArgs{callback, data, deleter});
+    let callback = Some(callback);
+    request.complete = Some(CallbackWithArgs{callback, data});
 }
 
 #[no_mangle]
