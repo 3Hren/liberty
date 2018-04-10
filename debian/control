@@ -2,7 +2,7 @@ Source: liberty
 Section: utils
 Priority: extra
 Maintainer: Evgeny Safronov <division494@gmail.com>
-Build-Depends: cmake, debhelper (>= 7.0.13), cdbs, curl
+Build-Depends: cmake, debhelper (>= 7.0.13), cdbs, curl, libssl-dev, pkg-config
 Standards-Version: 3.9.5
 
 Package: liberty0
